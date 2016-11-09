@@ -1,18 +1,32 @@
 package knawara.agh.reactive
 
-import akka.actor.{Props, ActorSystem, Actor}
-import akka.actor.Actor.Receive
+import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 
 class AuctioningSystem extends Actor {
-  override def receive(): Actor.Receive = ???
+  val auction = context.actorOf(Props[Auction])
+  val buyer = context.actorOf(Buyer.props(auction))
+
+  override def receive = {
+    case _ @ msg => println(s"AuctionSystem got new message: ${msg.toString}")
+  }
 }
 
-class Buyer extends Actor {
-  override def receive(): Receive = ???
+object Buyer {
+  def props(auction: ActorRef): Props = Props(new Buyer(auction))
+}
+
+class Buyer(auction: ActorRef) extends Actor {
+  auction ! "hello world"
+
+  override def receive = {
+    case _ @ msg => println(s"Buyer got new message: ${msg.toString}")
+  }
 }
 
 class Auction extends Actor {
-  override def receive(): Actor.Receive = ???
+  override def receive = {
+    case _ @ msg => println(s"Auction got new message: ${msg.toString}")
+  }
 }
 
 object Bootstrapper {
