@@ -1,5 +1,7 @@
 package knawara.agh.reactive
 
+import scala.concurrent.duration._
+
 import akka.actor.{ActorRef, FSM}
 import akka.actor.FSM.{->, Event}
 
@@ -37,18 +39,25 @@ class AuctionActor extends FSM[State, AuctionData] {
 
   when(Activated) {
     case Event(PlaceBid(_), _) => goto(Activated)
+    case Event(BidTimerExpired, _) => goto(Sold)
   }
 
   when(Sold) {
-    case Event(BidTimerExpired, _) => goto(Sold)
     case Event(DeleteTimerExpired, _) => stop(FSM.Normal)
   }
 
+  val BID_TIMER_NAME = "BidTimer"
   onTransition {
-    case _ -> Created => println("setting bid timer")
-    case _ -> Ignored => println("set delete timer")
+    case _ -> Created => setTimer(BID_TIMER_NAME, BidTimerExpired, 5 seconds, repeat = false)
+    case _ -> Ignored => {
+      cancelTimer(BID_TIMER_NAME)
+      println("set delete timer")
+    }
     case _ -> Activated => println("validate bid, preventing transition if needed")
-    case _ -> Sold => println("set delete timer & notify buyer")
+    case _ -> Sold => {
+      cancelTimer(BID_TIMER_NAME)
+      println("set delete timer & notify buyer")
+    }
   }
 
   onTermination {
