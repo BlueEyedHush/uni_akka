@@ -37,6 +37,8 @@ class AuctionActor extends FSM[State, AuctionData] {
   when(Ignored) {
     case Event(DeleteTimerExpired, _) => stop(FSM.Normal)
     case Event(Relist, _) => goto(Activated)
+    /* invalid */
+    case Event(PlaceBid(_), _) => handlePostauctionBid()
   }
 
   when(Activated) {
@@ -46,6 +48,8 @@ class AuctionActor extends FSM[State, AuctionData] {
 
   when(Sold) {
     case Event(DeleteTimerExpired, _) => stop(FSM.Normal)
+    /* invalid */
+    case Event(PlaceBid(_), _) => handlePostauctionBid()
   }
 
   val BID_TIMER_NAME = "BidTimer"
@@ -69,4 +73,9 @@ class AuctionActor extends FSM[State, AuctionData] {
   }
 
   initialize()
+
+  private def handlePostauctionBid() = {
+    sender() ! AuctionAlreadyEnded
+    stay()
+  }
 }
