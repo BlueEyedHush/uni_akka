@@ -68,8 +68,10 @@ class Auction extends Actor {
 
   var price = 0L
   var highestBidder: Option[ActorRef] = None
+  var bidTimerCanceller: Cancellable = null
+  var deleteTimerCanceller: Cancellable = null
 
-  Auction.startBidTimer(AUCTION_DURATION, self)
+  bidTimerCanceller = Auction.startBidTimer(AUCTION_DURATION, self)
 
   override def receive: Actor.Receive = receiveWhenActivated
 
@@ -80,7 +82,8 @@ class Auction extends Actor {
       context.become(receiveWhenActivated, discardOld = true)
     case AuctionEnded =>
       println("Auction ended without winner")
-      Auction.startDeleteTimer(self)
+      bidTimerCanceller = null
+      deleteTimerCanceller = Auction.startDeleteTimer(self)
       context.become(receiveWhenIgnored, discardOld = true)
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
@@ -95,7 +98,9 @@ class Auction extends Actor {
       else sender() ! BidTooSmall()
     case AuctionEnded =>
       println(s"Auction ended, highest price: $price, winner: ${highestBidder.get.path.name}")
+      bidTimerCanceller = null
       highestBidder.get ! YouWon
+      deleteTimerCanceller = Auction.startDeleteTimer(self)
       context.become(receiveWhenSold, discardOld = true)
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
@@ -105,7 +110,9 @@ class Auction extends Actor {
       println("Deleting auciton")
       context.stop(self)
     case Relist =>
-      Auction.startBidTimer(AUCTION_DURATION, self)
+      deleteTimerCanceller.cancel()
+      deleteTimerCanceller = null
+      bidTimerCanceller = Auction.startBidTimer(AUCTION_DURATION, self)
       context.become(receiveWhenCreated, discardOld = true)
     case PlaceBid(_) => sender() ! AuctionAlreadyEnded
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
