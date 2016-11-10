@@ -19,11 +19,15 @@ object BuyerActor {
 
 class BuyerActor(auction: ActorRef) extends Actor {
   val log = Logging(context.system, this)
-  BuyerActor.scheduleBidTick(self)
+  val bidTimerCanceller = BuyerActor.scheduleBidTick(self)
 
   override def receive = {
     case BidTick() => auction ! PlaceBid(Random.nextInt(100000))
     case BidTooSmall => log.debug("[{}] bid was too small", self.path.name)
+    case AuctionAlreadyEnded =>
+      log.debug("[{}] received auction-end information, stopping", self.path.name)
+      bidTimerCanceller.cancel()
+      context.stop(self)
     case _ @ msg => log.debug("[{}] got new message: {}", self.path.name, msg.toString)
   }
 }
