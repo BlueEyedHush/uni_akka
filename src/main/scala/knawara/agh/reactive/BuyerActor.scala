@@ -21,7 +21,7 @@ class BuyerActor(auction: ActorRef) extends Actor {
 
   override def receive = {
     case BidTick() => auction ! PlaceBid(Random.nextInt(100000))
-    case BidTooSmall() => println("Bid was too small")
+    case BidTooSmall => println("Bid was too small")
     case _ @ msg => println(s"Buyer got new message: ${msg.toString}")
   }
 }

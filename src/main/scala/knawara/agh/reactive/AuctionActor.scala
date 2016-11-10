@@ -5,10 +5,12 @@ import scala.concurrent.duration._
 import akka.actor.{ActorRef, FSM}
 import akka.actor.FSM.{->, Event}
 
-/* public messages */
+/* public messages - in */
 case class PlaceBid(val price: Long)
-case class BidTooSmall()
-case class Relist()
+case object Relist
+/* public messages - out */
+case object BidTooSmall
+case object AuctionAlreadyEnded
 
 /* internal messages */
 case object BidTimerExpired
@@ -34,7 +36,7 @@ class AuctionActor extends FSM[State, AuctionData] {
 
   when(Ignored) {
     case Event(DeleteTimerExpired, _) => stop(FSM.Normal)
-    case Event(Relist(), _) => goto(Activated)
+    case Event(Relist, _) => goto(Activated)
   }
 
   when(Activated) {
