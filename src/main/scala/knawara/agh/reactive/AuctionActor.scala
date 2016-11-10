@@ -2,7 +2,7 @@ package knawara.agh.reactive
 
 import scala.concurrent.duration._
 
-import akka.actor.{ActorRef, FSM}
+import akka.actor.{Props, ActorRef, FSM}
 import akka.actor.FSM.{->, Event}
 
 /* public messages - in */
@@ -26,7 +26,11 @@ case object Sold extends State
 /* data */
 case class AuctionData(val price: Long = 0L, val buyer: Option[ActorRef] = None)
 
-class AuctionActor extends FSM[State, AuctionData] {
+object AuctionActor {
+  def props(auctionDuration: FiniteDuration) = Props(new AuctionActor(auctionDuration))
+}
+
+class AuctionActor(val auctionDuration: FiniteDuration) extends FSM[State, AuctionData] {
   startWith(Created, AuctionData())
 
   when(Created) {
@@ -54,7 +58,7 @@ class AuctionActor extends FSM[State, AuctionData] {
 
   val BID_TIMER_NAME = "BidTimer"
   onTransition {
-    case _ -> Created => setTimer(BID_TIMER_NAME, BidTimerExpired, 5 seconds, repeat = false)
+    case _ -> Created => setBidTimer()
     case _ -> Ignored => {
       cancelTimer(BID_TIMER_NAME)
       println("set delete timer")
@@ -73,6 +77,8 @@ class AuctionActor extends FSM[State, AuctionData] {
   }
 
   initialize()
+
+  private def setBidTimer(): Unit = setTimer(BID_TIMER_NAME, BidTimerExpired, auctionDuration, repeat = false)
 
   private def handlePostauctionBid() = {
     sender() ! AuctionAlreadyEnded
