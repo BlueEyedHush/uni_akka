@@ -32,14 +32,23 @@ object Buyer {
 }
 
 class Buyer(auction: ActorRef) extends Actor {
-  Buyer.scheduleBidTick(self)
+  val bidTickCanceller = Buyer.scheduleBidTick(self)
 
   override def receive = {
     case BidTick() => auction ! PlaceBid(Random.nextInt(100000))
     case BidTooSmall() => println("Bid was too small")
-    case YouWon => println("I won!")
-    case AuctionAlreadyEnded => context.stop(self)
+    case YouWon =>
+      println("I won!")
+      stop()
+    case AuctionAlreadyEnded =>
+      println("Auction already ended, stopping this buyer")
+      stop()
     case _ @ msg => println(s"Buyer got new message: ${msg.toString}")
+  }
+
+  private def stop() = {
+    bidTickCanceller.cancel()
+    context.stop(self)
   }
 }
 
