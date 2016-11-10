@@ -3,37 +3,36 @@ package knawara.agh.reactive
 import akka.actor.{ActorRef, FSM}
 import akka.actor.FSM.{->, Event}
 
+/* public messages */
 case class PlaceBid(val price: Long)
 case class BidTooSmall()
 case class Relist()
 
-object Auction {
-  /* in-state messages */
-  val BID_TIMER_EXPIRED = "bte"
-  val DELETE_TIMER_EXPIRED = "dte"
-}
+/* internal messages */
+case object BidTimerExpired
+case object DeleteTimerExpired
 
 /* states */
-sealed trait AuctionState
-case object AuctionCreated extends AuctionState
-case object Ignored extends AuctionState
-case object Activated extends AuctionState
-case object Sold extends AuctionState
-case object Dead extends AuctionState
+sealed trait State
+case object Created extends State
+case object Ignored extends State
+case object Activated extends State
+case object Sold extends State
+case object Dead extends State
 
 /* data */
 case class AuctionData(val price: Long = 0L, val buyer: Option[ActorRef] = None)
 
-class AuctionActor extends FSM[AuctionState, AuctionData] {
-  startWith(AuctionCreated, AuctionData())
+class AuctionActor extends FSM[State, AuctionData] {
+  startWith(Created, AuctionData())
 
-  when(AuctionCreated) {
+  when(Created) {
     case Event(PlaceBid(_), _) => goto(Activated)
-    case Event(Auction.BID_TIMER_EXPIRED, _) => goto(Ignored)
+    case Event(BidTimerExpired, _) => goto(Ignored)
   }
 
   when(Ignored) {
-    case Event(Auction.DELETE_TIMER_EXPIRED, _) => goto(Dead)
+    case Event(DeleteTimerExpired, _) => goto(Dead)
     case Event(Relist(), _) => goto(Activated)
   }
 
@@ -42,11 +41,11 @@ class AuctionActor extends FSM[AuctionState, AuctionData] {
   }
 
   when(Sold) {
-    case Event(Auction.BID_TIMER_EXPIRED, _) => goto(Sold)
+    case Event(BidTimerExpired, _) => goto(Sold)
   }
 
   onTransition {
-    case _ -> AuctionCreated => println("setting bid timer")
+    case _ -> Created => println("setting bid timer")
     case _ -> Dead => println("cleanup auction actor")
     case _ -> Ignored => println("set delete timer")
     case _ -> Activated => println("validate bid, preventing transition if needed")
