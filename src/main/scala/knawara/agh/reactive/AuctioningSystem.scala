@@ -1,6 +1,6 @@
 package knawara.agh.reactive
 
-import akka.actor.{ActorRef, Props, ActorSystem, Actor}
+import akka.actor._
 
 import scala.util.Random
 
@@ -48,13 +48,26 @@ class Buyer(auction: ActorRef) extends Actor {
 
 class Auction extends Actor {
   var price = 0L
+  var highestBidder: Option[ActorRef] = None
 
-  override def receive = {
-    case PlaceBid(offeredPrice) => {
+  override def receive: Actor.Receive = receiveWhenActivated
+
+  def receiveWhenCreated: Actor.Receive = {
+    case PlaceBid(offeredPrice) =>
+      price = offeredPrice
+      highestBidder = Some(sender())
+      context.become(receiveWhenActivated, discardOld = true)
+    case _ @ msg => println(s"Auction got new message: ${msg.toString}")
+  }
+
+  def receiveWhenActivated: Actor.Receive = {
+    case PlaceBid(offeredPrice) =>
       println(s"Bid received: $offeredPrice")
-      if(offeredPrice > price) price = offeredPrice
+      if(offeredPrice > price) {
+        price = offeredPrice
+        highestBidder = Some(sender())
+      }
       else sender() ! BidTooSmall()
-    }
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
 }
