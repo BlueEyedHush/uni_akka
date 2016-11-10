@@ -67,4 +67,6 @@ class AuctionActor extends FSM[State, AuctionData] {
     case StopEvent(FSM.Shutdown, _, _) => println("WARN: someone shutdown this auction")
     case StopEvent(FSM.Failure(cause), _, _) => println(s"ERROR: auction failure, cause: ${cause}")
   }
+
+  initialize()
 }
