@@ -1,5 +1,7 @@
 package knawara.agh.reactive
 
+import akka.event.Logging
+
 import scala.concurrent.duration._
 
 import akka.actor.{Props, ActorRef, FSM}
@@ -97,8 +99,10 @@ class AuctionActor(val auctionDuration: FiniteDuration,
 
   private def handleLegalBid(bidPrice: Long) = {
     if (bidPrice > stateData.price) {
+      log.debug("received and accepted bid from [{}] for {}", sender().path.name, bidPrice)
       goto(Activated) using stateData.copy(price = bidPrice, buyer = Some(sender()))
     } else {
+      log.debug("received but rejected bid from [{}] for {}", sender().path.name, bidPrice)
       sender() ! BidTooSmall
       stay
     }

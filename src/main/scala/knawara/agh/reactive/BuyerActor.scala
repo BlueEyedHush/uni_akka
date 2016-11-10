@@ -1,6 +1,7 @@
 package knawara.agh.reactive
 
 import akka.actor.{Actor, Props, ActorRef}
+import akka.event.Logging
 import scala.util.Random
 
 case class BidTick()
@@ -17,11 +18,12 @@ object BuyerActor {
 }
 
 class BuyerActor(auction: ActorRef) extends Actor {
+  val log = Logging(context.system, this)
   BuyerActor.scheduleBidTick(self)
 
   override def receive = {
     case BidTick() => auction ! PlaceBid(Random.nextInt(100000))
-    case BidTooSmall => println("Bid was too small")
-    case _ @ msg => println(s"Buyer got new message: ${msg.toString}")
+    case BidTooSmall => log.debug("[{}] bid was too small", self.path.name)
+    case _ @ msg => log.debug("[{}] got new message: {}", self.path.name, msg.toString)
   }
 }

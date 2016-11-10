@@ -1,14 +1,17 @@
 package knawara.agh.reactive
 
 import akka.actor._
+import akka.event.Logging
 import scala.concurrent.duration._
 
 class AuctioningSystem extends Actor {
-  val auction = context.actorOf(AuctionActor.props(5 seconds))
-  val buyer = context.actorOf(BuyerActor.props(auction))
+  val log = Logging(context.system, this)
+
+  val auction = context.actorOf(AuctionActor.props(5 seconds), "auction")
+  val buyer = context.actorOf(BuyerActor.props(auction), "buyer")
 
   override def receive = {
-    case _ @ msg => println(s"AuctionSystem got new message: ${msg.toString}")
+    case _ @ msg => log.debug(s"AuctionSystem got new message: ${msg.toString}")
   }
 }
 
