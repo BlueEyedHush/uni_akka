@@ -18,11 +18,12 @@ case class PlaceBid(val price: Long)
 case class BidTooSmall()
 case object Relist
 case object YouWon
+case object AuctionAlreadyEnded
 
 object Buyer {
   def props(auction: ActorRef): Props = Props(new Buyer(auction))
 
-  private def scheduleBidTick(target: ActorRef) = {
+  private def scheduleBidTick(target: ActorRef): Cancellable = {
     import Bootstrapper.asystem.dispatcher
     import scala.concurrent.duration._
 
@@ -36,6 +37,8 @@ class Buyer(auction: ActorRef) extends Actor {
   override def receive = {
     case BidTick() => auction ! PlaceBid(Random.nextInt(100000))
     case BidTooSmall() => println("Bid was too small")
+    case YouWon => println("I won!")
+    case AuctionAlreadyEnded => context.stop(self)
     case _ @ msg => println(s"Buyer got new message: ${msg.toString}")
   }
 }
@@ -104,6 +107,7 @@ class Auction extends Actor {
     case Relist =>
       Auction.startBidTimer(AUCTION_DURATION, self)
       context.become(receiveWhenCreated, discardOld = true)
+    case PlaceBid(_) => sender() ! AuctionAlreadyEnded
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
 
@@ -112,6 +116,7 @@ class Auction extends Actor {
       println("Deleting auction")
       context.stop(self)
     }
+    case PlaceBid(_) => sender() ! AuctionAlreadyEnded
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
 }
