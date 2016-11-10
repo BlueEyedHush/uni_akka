@@ -9,6 +9,7 @@ import akka.actor.FSM.{->, Event}
 case class PlaceBid(val price: Long)
 case object Relist
 /* public messages - out */
+case object YouWon
 case object BidTooSmall
 case object AuctionAlreadyEnded
 
@@ -37,7 +38,7 @@ class AuctionActor(val auctionDuration: FiniteDuration,
   startWith(Created, AuctionData())
 
   when(Created) {
-    case Event(PlaceBid(_), _) => goto(Activated)
+    case Event(PlaceBid(offeredPrice), _) => handleLegalBid(offeredPrice)
     case Event(BidTimerExpired, _) => goto(Ignored)
   }
 
@@ -49,7 +50,7 @@ class AuctionActor(val auctionDuration: FiniteDuration,
   }
 
   when(Activated) {
-    case Event(PlaceBid(_), _) => goto(Activated)
+    case Event(PlaceBid(offeredPrice), state) => handleLegalBid(offeredPrice)
     case Event(BidTimerExpired, _) => goto(Sold)
   }
 
@@ -65,11 +66,12 @@ class AuctionActor(val auctionDuration: FiniteDuration,
     case _ -> Ignored =>
       cancelBidTimer()
       setDeleteTimer()
-    case _ -> Activated => println("validate bid, preventing transition if needed")
+    /*case _ -> Activated =>
+      println("validate bid, preventing transition if needed")*/
     case _ -> Sold =>
       cancelBidTimer()
       setDeleteTimer()
-      println("notify buyer")
+      stateData.buyer.get ! YouWon
   }
 
   onTermination {
@@ -91,5 +93,14 @@ class AuctionActor(val auctionDuration: FiniteDuration,
   private def handlePostauctionBid() = {
     sender() ! AuctionAlreadyEnded
     stay()
+  }
+
+  private def handleLegalBid(bidPrice: Long) = {
+    if (bidPrice > stateData.price) {
+      goto(Activated) using stateData.copy(price = bidPrice, buyer = Some(sender()))
+    } else {
+      sender() ! BidTooSmall
+      stay
+    }
   }
 }
