@@ -17,15 +17,7 @@ case class BidTick()
 case class PlaceBid(val price: Long)
 case class BidTooSmall()
 case object Relist
-
-class AuctioningSystem extends Actor {
-  val auction = context.actorOf(Props[Auction])
-  val buyer = context.actorOf(Buyer.props(auction))
-
-  override def receive = {
-    case _ @ msg => println(s"AuctionSystem got new message: ${msg.toString}")
-  }
-}
+case object YouWon
 
 object Buyer {
   def props(auction: ActorRef): Props = Props(new Buyer(auction))
@@ -98,6 +90,10 @@ class Auction extends Actor {
         highestBidder = Some(sender())
       }
       else sender() ! BidTooSmall()
+    case AuctionEnded =>
+      println(s"Auction ended, highest price: $price, winner: ${highestBidder.get.path.name}")
+      highestBidder.get ! YouWon
+      context.become(receiveWhenSold, discardOld = true)
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
 
@@ -109,6 +105,23 @@ class Auction extends Actor {
       Auction.startBidTimer(AUCTION_DURATION, self)
       context.become(receiveWhenCreated, discardOld = true)
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
+  }
+
+  def receiveWhenSold: Actor.Receive = {
+    case DeleteAuction => {
+      println("Deleting auction")
+      context.stop(self)
+    }
+    case _ @ msg => println(s"Auction got new message: ${msg.toString}")
+  }
+}
+
+class AuctioningSystem extends Actor {
+  val auction = context.actorOf(Props[Auction], "auction")
+  val buyer = context.actorOf(Buyer.props(auction), "buyer")
+
+  override def receive = {
+    case _ @ msg => println(s"AuctionSystem got new message: ${msg.toString}")
   }
 }
 
