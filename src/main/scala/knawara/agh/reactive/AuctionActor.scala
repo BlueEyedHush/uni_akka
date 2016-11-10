@@ -27,10 +27,13 @@ case object Sold extends State
 case class AuctionData(val price: Long = 0L, val buyer: Option[ActorRef] = None)
 
 object AuctionActor {
-  def props(auctionDuration: FiniteDuration) = Props(new AuctionActor(auctionDuration))
+  val AUCTION_DELETE_TIME = 5 seconds
+
+  def props(auctionDuration: FiniteDuration) = Props(new AuctionActor(auctionDuration, AUCTION_DELETE_TIME))
 }
 
-class AuctionActor(val auctionDuration: FiniteDuration) extends FSM[State, AuctionData] {
+class AuctionActor(val auctionDuration: FiniteDuration,
+                   val auctionDeleteTime: FiniteDuration) extends FSM[State, AuctionData] {
   startWith(Created, AuctionData())
 
   when(Created) {
@@ -56,29 +59,34 @@ class AuctionActor(val auctionDuration: FiniteDuration) extends FSM[State, Aucti
     case Event(PlaceBid(_), _) => handlePostauctionBid()
   }
 
-  val BID_TIMER_NAME = "BidTimer"
+
   onTransition {
     case _ -> Created => setBidTimer()
-    case _ -> Ignored => {
-      cancelTimer(BID_TIMER_NAME)
-      println("set delete timer")
-    }
+    case _ -> Ignored =>
+      cancelBidTimer()
+      setDeleteTimer()
     case _ -> Activated => println("validate bid, preventing transition if needed")
-    case _ -> Sold => {
-      cancelTimer(BID_TIMER_NAME)
-      println("set delete timer & notify buyer")
-    }
+    case _ -> Sold =>
+      cancelBidTimer()
+      setDeleteTimer()
+      println("notify buyer")
   }
 
   onTermination {
-    case StopEvent(FSM.Normal, _, _) => println("delete timer expired, action cleaned up")
+    case StopEvent(FSM.Normal, _, _) => println("delete timer expired, auction cleaned up")
     case StopEvent(FSM.Shutdown, _, _) => println("WARN: someone shutdown this auction")
     case StopEvent(FSM.Failure(cause), _, _) => println(s"ERROR: auction failure, cause: ${cause}")
   }
 
   initialize()
 
+  private val BID_TIMER_NAME = "BidTimer"
   private def setBidTimer(): Unit = setTimer(BID_TIMER_NAME, BidTimerExpired, auctionDuration, repeat = false)
+  private def cancelBidTimer(): Unit = cancelTimer(BID_TIMER_NAME)
+
+  private val DELETE_TIMER_NAME = "DeleteTimer"
+  private def setDeleteTimer(): Unit = setTimer(DELETE_TIMER_NAME, DeleteTimerExpired, auctionDeleteTime, repeat = false)
+  private def cancelDeleteTimer(): Unit = cancelTimer(DELETE_TIMER_NAME)
 
   private def handlePostauctionBid() = {
     sender() ! AuctionAlreadyEnded
