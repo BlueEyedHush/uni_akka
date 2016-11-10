@@ -2,6 +2,7 @@ package knawara.agh.reactive
 
 import akka.actor._
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
 
 /* todo
@@ -15,6 +16,7 @@ import scala.util.Random
 case class BidTick()
 case class PlaceBid(val price: Long)
 case class BidTooSmall()
+case object Relist
 
 class AuctioningSystem extends Actor {
   val auction = context.actorOf(Props[Auction])
@@ -46,9 +48,33 @@ class Buyer(auction: ActorRef) extends Actor {
   }
 }
 
+case object AuctionEnded
+case object DeleteAuction
+
+object Auction {
+  private val DELETE_TIMEOUT = 5
+
+  private def startTimer(delay: Int, target: ActorRef, message: Any) = {
+    import Bootstrapper.asystem.dispatcher
+    import scala.concurrent.duration._
+
+    Bootstrapper.asystem.scheduler.scheduleOnce(delay seconds, target, message)
+  }
+
+  private def startBidTimer(auctionDuration: Int, target: ActorRef): Cancellable =
+    startTimer(auctionDuration, target, AuctionEnded)
+
+  private def startDeleteTimer(target: ActorRef): Cancellable =
+    startTimer(DELETE_TIMEOUT, target, DeleteAuction)
+}
+
 class Auction extends Actor {
+  val AUCTION_DURATION = 5
+
   var price = 0L
   var highestBidder: Option[ActorRef] = None
+
+  Auction.startBidTimer(AUCTION_DURATION, self)
 
   override def receive: Actor.Receive = receiveWhenActivated
 
@@ -57,6 +83,10 @@ class Auction extends Actor {
       price = offeredPrice
       highestBidder = Some(sender())
       context.become(receiveWhenActivated, discardOld = true)
+    case AuctionEnded =>
+      println("Auction ended without winner")
+      Auction.startDeleteTimer(self)
+      context.become(receiveWhenIgnored, discardOld = true)
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
 
@@ -68,6 +98,16 @@ class Auction extends Actor {
         highestBidder = Some(sender())
       }
       else sender() ! BidTooSmall()
+    case _ @ msg => println(s"Auction got new message: ${msg.toString}")
+  }
+
+  def receiveWhenIgnored: Actor.Receive = {
+    case DeleteAuction =>
+      println("Deleting auciton")
+      context.stop(self)
+    case Relist =>
+      Auction.startBidTimer(AUCTION_DURATION, self)
+      context.become(receiveWhenCreated, discardOld = true)
     case _ @ msg => println(s"Auction got new message: ${msg.toString}")
   }
 }
