@@ -5,9 +5,6 @@ import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import scala.util.Random
 
 /* todo
-- bid using scheduler, with delay
-- bid fixed price
-- bid random price
 - buyer - bid on list of auctions
 - send back current price
 - auction duration
@@ -15,6 +12,7 @@ import scala.util.Random
 - handle bidder destruction
  */
 
+case class BidTick()
 case class PlaceBid(val price: Long)
 case class BidTooSmall()
 
@@ -29,12 +27,20 @@ class AuctioningSystem extends Actor {
 
 object Buyer {
   def props(auction: ActorRef): Props = Props(new Buyer(auction))
+
+  private def scheduleBidTick(target: ActorRef) = {
+    import Bootstrapper.asystem.dispatcher
+    import scala.concurrent.duration._
+
+    Bootstrapper.asystem.scheduler.schedule(1 second, 500 millis , target, BidTick())
+  }
 }
 
 class Buyer(auction: ActorRef) extends Actor {
-  auction ! PlaceBid(Random.nextInt())
+  Buyer.scheduleBidTick(self)
 
   override def receive = {
+    case BidTick() => auction ! PlaceBid(Random.nextInt(100000))
     case BidTooSmall() => println("Bid was too small")
     case _ @ msg => println(s"Buyer got new message: ${msg.toString}")
   }
@@ -54,8 +60,9 @@ class Auction extends Actor {
 }
 
 object Bootstrapper {
+  val asystem = ActorSystem("AuctioningSystem")
+
   private def initializeActorSystem() = {
-    val asystem = ActorSystem("AuctioningSystem")
     asystem.actorOf(Props[AuctioningSystem])
   }
 
