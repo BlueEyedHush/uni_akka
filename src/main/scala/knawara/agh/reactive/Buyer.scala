@@ -50,12 +50,12 @@ package object Buyer {
 
     when(Bidding) {
       case Event(BidTick, BiddingInProgressData(auctionRef, _)) =>
-        auctionRef ! PlaceBid(Random.nextInt(100000))
+        auctionRef ! Auction.PlaceBid(Random.nextInt(100000))
         stay
-      case Event(BidTooSmall, _) =>
+      case Event(Auction.BidTooSmall, _) =>
         log.debug("[{}] bid was too small", self.path.name)
         stay
-      case Event(AuctionAlreadyEnded, BiddingInProgressData(_, canceller)) =>
+      case Event(Auction.AlreadyEnded, BiddingInProgressData(_, canceller)) =>
         log.debug("[{}] received auction-end information, stopping", self.path.name)
         canceller.cancel()
         stop(FSM.Normal)
