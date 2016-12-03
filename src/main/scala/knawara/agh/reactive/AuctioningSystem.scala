@@ -8,7 +8,7 @@ class AuctioningSystem extends Actor {
   val registry = context.actorOf(Props[AuctionSearchActor], "registry")
 
   private[this] val titles = Set("1", "2", "3")
-  val seller = context.actorOf(SellerActor.props(titles.map(s => new AuctionTitle(s))))
+  val seller = context.actorOf(SellerActor.props(titles.map(s => new AuctionTitle(s))), "seller-0")
   val buyers = titles
     .flatMap(title => List.fill(3)(title).zip(1 to titles.size))
     .map({

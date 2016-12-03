@@ -14,6 +14,7 @@ case object Relist
 case object YouWon
 case object BidTooSmall
 case object AuctionAlreadyEnded
+case class Sold(val auctionRef: ActorRef)
 
 /* internal messages */
 case object BidTimerExpired
@@ -32,11 +33,13 @@ case class AuctionData(val price: Long = 0L, val buyer: Option[ActorRef] = None)
 object AuctionActor {
   val AUCTION_DELETE_TIME = 5 seconds
 
-  def props(auctionDuration: FiniteDuration) = Props(new AuctionActor(auctionDuration, AUCTION_DELETE_TIME))
+  def props(auctionDuration: FiniteDuration, notifyOnEnd: ActorRef) =
+    Props(new AuctionActor(auctionDuration, AUCTION_DELETE_TIME, notifyOnEnd))
 }
 
 class AuctionActor(val auctionDuration: FiniteDuration,
-                   val auctionDeleteTime: FiniteDuration) extends FSM[State, AuctionData] {
+                   val auctionDeleteTime: FiniteDuration,
+                   val notifyOnEnd: ActorRef) extends FSM[State, AuctionData] {
   startWith(Created, AuctionData())
 
   when(Created) {
@@ -73,13 +76,14 @@ class AuctionActor(val auctionDuration: FiniteDuration,
     case _ -> Sold =>
       cancelBidTimer()
       setDeleteTimer()
+      notifyOnEnd ! Sold(self)
       stateData.buyer.get ! YouWon
   }
 
   onTermination {
     case StopEvent(FSM.Normal, _, _) => println("delete timer expired, auction cleaned up")
     case StopEvent(FSM.Shutdown, _, _) => println("WARN: someone shutdown this auction")
-    case StopEvent(FSM.Failure(cause), _, _) => println(s"ERROR: auction failure, cause: ${cause}")
+    case StopEvent(FSM.Failure(cause), _, _) => println(s"ERROR: auction failure, cause: $cause")
   }
 
   initialize()
