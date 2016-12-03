@@ -5,10 +5,10 @@ import akka.event.Logging
 
 class AuctioningSystem extends Actor {
   val log = Logging(context.system, this)
-  val registry = context.actorOf(Props[AuctionSearchActor], "registry")
+  val registry = context.actorOf(Props[AuctionSearch.Actor], "registry")
 
   private[this] val titles = Set("1", "2", "3")
-  val seller = context.actorOf(SellerActor.props(titles.map(s => new AuctionTitle(s))), "seller-0")
+  val seller = context.actorOf(Seller.Actor.props(titles.map(s => new AuctionTitle(s))), "seller-0")
   val buyers = titles
     .flatMap(title => List.fill(3)(title).zip(1 to titles.size))
     .map({

@@ -29,7 +29,7 @@ package object Buyer {
     when(WaitingForInitialTimeout) {
       case Event(InitialTimeoutExpired, _) =>
         val registryActorSelection = context.actorSelection("/user/system/registry")
-        registryActorSelection ! LookupAuction(auctionQuery)
+        registryActorSelection ! AuctionSearch.Lookup(auctionQuery)
         goto(WaitingForAuctionList)
       case Event(msg, _) =>
         log.debug("[{}] got new message: {} while in {} state", self.path.name, msg.toString, "WaitingForInitialTimeout")
@@ -37,7 +37,7 @@ package object Buyer {
     }
 
     when(WaitingForAuctionList) {
-      case Event(LookupResult(_, results), _) =>
+      case Event(AuctionSearch.Result(_, results), _) =>
         val ho = results.headOption
         if(ho.isDefined) {
           log.debug("[{}] received Auctions ActorRef, bidding smallest possible amount", self.path.name)
