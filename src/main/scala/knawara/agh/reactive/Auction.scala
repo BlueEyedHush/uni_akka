@@ -13,7 +13,7 @@ package object Auction {
   case object Relist
   /* public messages - out */
   case object YouWon
-  case object BidTooSmall
+  case class BidTooSmall(val currentPrice: Long)
   case object AlreadyEnded
   case class Sold(val auctionRef: ActorRef)
   case class Outbidden(val newPrice: Long)
@@ -108,7 +108,7 @@ package object Auction {
         goto(Activated) using ActiveData(price = bidPrice, buyer = sender())
       } else {
         log.debug("[{}] received but rejected bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
-        sender() ! BidTooSmall
+        sender() ! BidTooSmall(currentPrice)
         stay
       }
     }

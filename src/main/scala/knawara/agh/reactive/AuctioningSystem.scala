@@ -12,7 +12,7 @@ class AuctioningSystem extends Actor {
   val buyers = titles
     .flatMap(title => List.fill(3)(title).zip(1 to titles.size))
     .map({
-      case (title, buyerId) => context.actorOf(Buyer.Actor.props(title), s"buyer-$title-$buyerId")
+      case (title, buyerId) => context.actorOf(Buyer.Actor.props(title, 5L), s"buyer-$title-$buyerId")
     })
 
   override def receive = {
