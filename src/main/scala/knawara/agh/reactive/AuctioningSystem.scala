@@ -2,25 +2,20 @@ package knawara.agh.reactive
 
 import akka.actor._
 import akka.event.Logging
-import scala.concurrent.duration._
 
 class AuctioningSystem extends Actor {
   val log = Logging(context.system, this)
   val registry = context.actorOf(Props[AuctionSearchActor], "registry")
 
-  private[this] val titles = Set("1", "2", "3").map(s => new AuctionTitle(s))
-  val seller = context.actorOf(SellerActor.props(titles))
-  seller ! GiveMeYourAuctions
+  private[this] val titles = Set("1", "2", "3")
+  val seller = context.actorOf(SellerActor.props(titles.map(s => new AuctionTitle(s))))
+  val buyers = titles
+    .flatMap(title => List.fill(3)(title).zip(1 to titles.size))
+    .map({
+      case (title, buyerId) => context.actorOf(Buyer.Actor.props(title), s"buyer-$title-$buyerId")
+    })
 
   override def receive = {
-    case SellerAuctions(auctions) =>
-      auctions
-          .flatMap(actorRef => {
-            List.fill(3)(actorRef)
-              .zip(Set(1,2,3))
-          })
-        .foreach({ case (auctionRef, idx) =>
-          context.actorOf(BuyerActor.props(auctionRef), s"buyer-${auctionRef.path.name}-$idx")})
     case _ @ msg => log.debug(s"AuctionSystem got new message: ${msg.toString}")
   }
 }
