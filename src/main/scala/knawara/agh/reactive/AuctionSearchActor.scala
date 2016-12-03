@@ -15,7 +15,9 @@ class AuctionSearchActor extends Actor {
   val aucitonRegistry = mutable.Map[AuctionTitle, ActorRef]()
 
   override def receive = {
-    case RegisterAuction(title, ref) => aucitonRegistry + (title -> ref)
+    case RegisterAuction(title, ref) =>
+      log.debug(s"registering: ${title.title}")
+      aucitonRegistry + (title -> ref)
     case LookupAuction(searchTerm) => sender() ! LookupResult(title = searchTerm, auction = aucitonRegistry.get(searchTerm))
     case _ @ msg => log.debug("[{}] got new message: {}", self.path.name, msg.toString)
   }

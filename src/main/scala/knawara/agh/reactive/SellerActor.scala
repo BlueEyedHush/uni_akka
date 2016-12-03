@@ -17,11 +17,14 @@ object SellerActor {
 
 class SellerActor(auctionTitles: Set[AuctionTitle]) extends Actor {
   val log = Logging(context.system, this)
+  val registryActorSelection = context.actorSelection("/user/system/registry")
 
-  val auctions = auctionTitles.map(t => {
+
+  val auctions = auctionTitles.map(auctionTitle => {
     import scala.concurrent.duration._
     val duration = (Random.nextInt(5) + 15) seconds
-    val actorRef = context.actorOf(AuctionActor.props(duration), s"auction-${t.title}")
+    val actorRef = context.actorOf(AuctionActor.props(duration), s"auction-${auctionTitle.title}")
+    registryActorSelection ! RegisterAuction(auctionTitle, actorRef)
     actorRef
   })
 

@@ -6,6 +6,7 @@ import scala.concurrent.duration._
 
 class AuctioningSystem extends Actor {
   val log = Logging(context.system, this)
+  val registry = context.actorOf(Props[AuctionSearchActor], "registry")
 
   private[this] val titles = Set("1", "2", "3").map(s => new AuctionTitle(s))
   val seller = context.actorOf(SellerActor.props(titles))
@@ -28,7 +29,7 @@ object Bootstrapper {
   val asystem = ActorSystem("AuctioningSystem")
 
   private def initializeActorSystem() = {
-    asystem.actorOf(Props[AuctioningSystem])
+    asystem.actorOf(Props[AuctioningSystem], "system")
   }
 
   def main(args: Array[String]): Unit = {
