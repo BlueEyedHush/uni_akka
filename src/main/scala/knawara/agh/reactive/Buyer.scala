@@ -57,15 +57,21 @@ package object Buyer {
         stay
       case Event(Auction.AlreadyEnded, BiddingInProgressData(_, canceller)) =>
         log.debug("[{}] received auction-end information, stopping", self.path.name)
-        canceller.cancel()
-        stop(FSM.Normal)
-        stay
+        cleanupAndStop(canceller)
+      case Event(Auction.YouWon, BiddingInProgressData(_, canceller)) =>
+        log.debug("[{}] won", self.path.name)
+        cleanupAndStop(canceller)
       case Event(msg, _) =>
         log.debug("[{}] got new message: {} while in {} state", self.path.name, msg.toString, "Bidding")
         stay
     }
 
     initialize()
+
+    private def cleanupAndStop(canceller: Cancellable) = {
+      canceller.cancel()
+      stop(FSM.Normal)
+    }
   }
 }
 
