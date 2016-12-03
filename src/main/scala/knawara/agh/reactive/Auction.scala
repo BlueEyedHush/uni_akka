@@ -16,6 +16,7 @@ package object Auction {
   case object BidTooSmall
   case object AlreadyEnded
   case class Sold(val auctionRef: ActorRef)
+  case class Outbidden(val newPrice: Long)
 
   /* internal messages */
   case object BidTimerExpired
@@ -46,7 +47,7 @@ package object Auction {
     startWith(Created, Empty)
 
     when(Created) {
-      case Event(PlaceBid(offeredPrice), _) => handleLegalBid(offeredPrice, 0L)
+      case Event(PlaceBid(offeredPrice), _) => handleLegalBid(offeredPrice, 0L, None)
       case Event(BidTimerExpired, _) => goto(Ignored)
     }
 
@@ -58,7 +59,8 @@ package object Auction {
     }
 
     when(Activated) {
-      case Event(PlaceBid(offeredPrice), ActiveData(currentPrice, _)) => handleLegalBid(offeredPrice, currentPrice)
+      case Event(PlaceBid(offeredPrice), ActiveData(currentPrice, currentWinner)) =>
+        handleLegalBid(offeredPrice, currentPrice, Some(currentWinner))
       case Event(BidTimerExpired, ActiveData(_, buyer)) => handleSold(buyer)
     }
 
@@ -99,9 +101,10 @@ package object Auction {
       stay()
     }
 
-    private def handleLegalBid(bidPrice: Long, currentPrice: Long) = {
+    private def handleLegalBid(bidPrice: Long, currentPrice: Long, currentWinner: Option[ActorRef]) = {
       if (bidPrice > currentPrice) {
         log.debug("[{}] received and accepted bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
+        if(currentWinner.isDefined) currentWinner.get ! Outbidden(newPrice = bidPrice)
         goto(Activated) using ActiveData(price = bidPrice, buyer = sender())
       } else {
         log.debug("[{}] received but rejected bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
