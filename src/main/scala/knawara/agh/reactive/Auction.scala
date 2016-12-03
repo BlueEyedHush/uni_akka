@@ -29,7 +29,9 @@ package object Auction {
   case object Sold extends State
 
   /* data */
-  case class Data(val price: Long = 0L, val buyer: Option[ActorRef] = None)
+  sealed trait Data
+  case object Empty extends Data
+  case class ActiveData(val price: Long = 0L, val buyer: ActorRef = null) extends Data
 
   object Actor {
     val AUCTION_DELETE_TIME = 5 seconds
@@ -41,28 +43,27 @@ package object Auction {
   class Actor(val auctionDuration: FiniteDuration,
               val auctionDeleteTime: FiniteDuration,
               val notifyOnEnd: ActorRef) extends FSM[State, Data] {
-    startWith(Created, Data())
+    startWith(Created, Empty)
 
     when(Created) {
-      case Event(PlaceBid(offeredPrice), _) => handleLegalBid(offeredPrice)
+      case Event(PlaceBid(offeredPrice), _) => handleLegalBid(offeredPrice, 0L)
       case Event(BidTimerExpired, _) => goto(Ignored)
     }
 
     when(Ignored) {
       case Event(DeleteTimerExpired, _) => stop(FSM.Normal)
-      case Event(Relist, _) => goto(Activated)
+      case Event(Relist, _) => goto(Created)
       /* invalid */
       case Event(PlaceBid(_), _) => handlePostauctionBid()
     }
 
     when(Activated) {
-      case Event(PlaceBid(offeredPrice), state) => handleLegalBid(offeredPrice)
-      case Event(BidTimerExpired, _) => goto(Sold)
+      case Event(PlaceBid(offeredPrice), ActiveData(currentPrice, _)) => handleLegalBid(offeredPrice, currentPrice)
+      case Event(BidTimerExpired, ActiveData(_, buyer)) => handleSold(buyer)
     }
 
     when(Sold) {
       case Event(DeleteTimerExpired, _) => stop(FSM.Normal)
-      /* invalid */
       case Event(PlaceBid(_), _) => handlePostauctionBid()
     }
 
@@ -72,13 +73,9 @@ package object Auction {
       case _ -> Ignored =>
         cancelBidTimer()
         setDeleteTimer()
-      /*case _ -> Activated =>
-        println("validate bid, preventing transition if needed")*/
       case _ -> Sold =>
         cancelBidTimer()
         setDeleteTimer()
-        notifyOnEnd ! Sold(self)
-        stateData.buyer.get ! YouWon
     }
 
     onTermination {
@@ -102,15 +99,21 @@ package object Auction {
       stay()
     }
 
-    private def handleLegalBid(bidPrice: Long) = {
-      if (bidPrice > stateData.price) {
+    private def handleLegalBid(bidPrice: Long, currentPrice: Long) = {
+      if (bidPrice > currentPrice) {
         log.debug("[{}] received and accepted bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
-        goto(Activated) using stateData.copy(price = bidPrice, buyer = Some(sender()))
+        goto(Activated) using ActiveData(price = bidPrice, buyer = sender())
       } else {
         log.debug("[{}] received but rejected bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
         sender() ! BidTooSmall
         stay
       }
+    }
+
+    private def handleSold(buyer: ActorRef) = {
+      notifyOnEnd ! Sold(self)
+      buyer ! YouWon
+      goto(Sold)
     }
   }
 
