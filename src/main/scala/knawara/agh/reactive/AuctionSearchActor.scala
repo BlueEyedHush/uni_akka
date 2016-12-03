@@ -8,7 +8,7 @@ import scala.collection.mutable
 
 case class RegisterAuction(val title: AuctionTitle, val ref: ActorRef)
 case class LookupAuction(val query: String)
-case class LookupResult(val query: String, val auction: Option[ActorRef])
+case class LookupResult(val query: String, val auction: List[ActorRef])
 
 class AuctionSearchActor extends Actor {
   val log = Logging(context.system, this)
@@ -24,10 +24,8 @@ class AuctionSearchActor extends Actor {
           if(auctionTitle.title.contains(searchTerm)) true
           else false
         })
-      val auctionRef =
-        if(results.isEmpty) None
-        else Some(results.head._2)
-      sender() ! LookupResult(query = searchTerm, auction = auctionRef)
+        .map({case (title, actorRef) => actorRef})
+      sender() ! LookupResult(query = searchTerm, auction = results.toList)
     case _ @ msg => log.debug("[{}] got new message: {}", self.path.name, msg.toString)
   }
 }

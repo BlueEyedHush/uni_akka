@@ -33,11 +33,12 @@ package object Buyer {
     startWith(WaitingForAuctionList, Empty)
 
     when(WaitingForAuctionList) {
-      case Event(LookupResult(_, auctionRefOption), _) =>
-        if(auctionRefOption.isDefined) {
+      case Event(LookupResult(_, results), _) =>
+        val ho = results.headOption
+        if(ho.isDefined) {
           log.debug("[{}] received Auctions ActorRef, starting bidding", self.path.name)
           val bidTimerCanceller = Actor.scheduleBidTick(self)
-          goto(Bidding) using BiddingInProgressData(auctionRefOption.get, bidTimerCanceller)
+          goto(Bidding) using BiddingInProgressData(ho.get, bidTimerCanceller)
         } else {
           log.debug("[{}] Query didn't return any auctions, shutting down buyer", self.path.name)
           stop(FSM.Normal)
