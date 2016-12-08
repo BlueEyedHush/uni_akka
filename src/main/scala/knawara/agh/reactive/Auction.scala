@@ -37,13 +37,13 @@ package object Auction {
   object Actor {
     val AUCTION_DELETE_TIME = 5 seconds
 
-    def props(auctionDuration: FiniteDuration, notifyOnEnd: ActorRef) =
+    def props(auctionDuration: FiniteDuration, notifyOnEnd: Option[ActorRef] = None) =
       Props(new Actor(auctionDuration, AUCTION_DELETE_TIME, notifyOnEnd))
   }
 
   class Actor(val auctionDuration: FiniteDuration,
               val auctionDeleteTime: FiniteDuration,
-              val notifyOnEnd: ActorRef) extends FSM[State, Data] {
+              val notifyOnEnd: Option[ActorRef] = None) extends FSM[State, Data] {
     startWith(Created, Empty)
 
     when(Created) {
@@ -114,7 +114,7 @@ package object Auction {
     }
 
     private def handleSold(buyer: ActorRef) = {
-      notifyOnEnd ! Sold(self)
+      if(notifyOnEnd.isDefined) notifyOnEnd.get ! Sold(self)
       buyer ! YouWon
       goto(Sold)
     }

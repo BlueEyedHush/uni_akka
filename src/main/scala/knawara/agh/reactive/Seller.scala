@@ -23,7 +23,7 @@ package object Seller {
     val auctions = auctionTitles.map(auctionTitle => {
       import scala.concurrent.duration._
       val duration = (Random.nextInt(5) + 15) seconds
-      val actorRef = context.actorOf(Auction.Actor.props(duration, self), s"auction-${auctionTitle.title}")
+      val actorRef = context.actorOf(Auction.Actor.props(duration, Some(self)), s"auction-${auctionTitle.title}")
       registryActorSelection ! AuctionSearch.Register(auctionTitle, actorRef)
       actorRef
     })
