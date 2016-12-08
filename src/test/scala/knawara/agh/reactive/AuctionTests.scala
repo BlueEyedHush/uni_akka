@@ -8,18 +8,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class AuctionTests extends AsyncFlatSpec with Matchers {
-  // auction ends not before and not after specified time
-  // auction is deleted after combined time
-  // buy request is registered
-  // buyer offer changes the price
-  // smaller offer is rejected (price)
-  // smaller offer is rejected (buyer)
-
+  // get YouWon message
+  // get auction ended message
   // handle pathological states - messages in invalid states
-
   // stability under random messages ordering
 
-  implicit val actorSystem = ActorSystem("syncTestSystem")
+  implicit val actorSystem = ActorSystem("testSystem")
 
   "AuctionActor" should "successfully initialize and end up in 'Created' state" in {
     assert(testActor().stateName.equals(Auction.Created))
@@ -48,6 +42,20 @@ class AuctionTests extends AsyncFlatSpec with Matchers {
     val ta = testActor()
     ta ! Auction.PlaceBid(10L)
     val state = ta.stateData.asInstanceOf[Auction.ActiveData]
+    assert(state.price.equals(10L))
+  }
+
+  it should "reject smaller offer" in {
+    val ta = testActor()
+    val probe1 = TestProbe()
+    val probe2 = TestProbe()
+
+    probe1.send(ta, Auction.PlaceBid(10L))
+    probe2.send(ta, Auction.PlaceBid(5L))
+
+    val state = ta.stateData.asInstanceOf[Auction.ActiveData]
+
+    assert(state.buyer.equals(probe1.ref))
     assert(state.price.equals(10L))
   }
 
