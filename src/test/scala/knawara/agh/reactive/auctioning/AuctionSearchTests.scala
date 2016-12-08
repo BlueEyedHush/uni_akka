@@ -1,8 +1,8 @@
-package knawara.agh.reactive
+package knawara.agh.reactive.auctioning
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe, TestFSMRef}
-import knawara.agh.reactive.AuctionSearch
+import knawara.agh.reactive.auctioning.AuctionSearch
 import org.scalatest.{FlatSpec, Matchers}
 
 class AuctionSearchTests extends FlatSpec with Matchers {

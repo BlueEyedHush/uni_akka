@@ -1,4 +1,4 @@
-package knawara.agh.reactive
+package knawara.agh.reactive.auctioning
 
 import akka.event.Logging
 
