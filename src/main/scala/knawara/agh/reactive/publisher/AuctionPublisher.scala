@@ -5,6 +5,7 @@ import akka.event.Logging
 
 package object AuctionPublisher {
   case class Publish(val message: String)
+  case object Success
 
   object Actor {
     def props() = Props(new Actor)
@@ -15,7 +16,9 @@ package object AuctionPublisher {
     log.debug(s"Publisher initialization as ${self.path}")
 
     override def receive = {
-      case Publish(message) => println(message)
+      case Publish(message) =>
+        println(message)
+        sender() ! Success
     }
   }
 }

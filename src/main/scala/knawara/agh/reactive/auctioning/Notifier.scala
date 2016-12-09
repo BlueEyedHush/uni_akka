@@ -2,10 +2,12 @@ package knawara.agh.reactive.auctioning
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.event.Logging
+import akka.util.Timeout
+import knawara.agh.reactive.auctioning.NotifierRequest.SendFailed
 
 import scala.util.{Success, Failure}
 import scala.concurrent.duration._
-import akka.actor.{OneForOneStrategy, Actor, Props, ActorRef}
+import akka.actor._
 import knawara.agh.reactive.auctioning.Notifier.{Notify, ResolveFailure, ResolveSuccess}
 import knawara.agh.reactive.publisher.AuctionPublisher.Publish
 
@@ -20,8 +22,7 @@ object Notifier {
   def props() = Props(new Notifier)
 }
 
-class Notifier extends Actor {
-  val log = Logging(context.system, this)
+class Notifier extends Actor with ActorLogging {
   var publisher: ActorRef = null
 
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -35,8 +36,10 @@ class Notifier extends Actor {
       self ! ResolveFailure
   }
 
-  override val supervisorStrategy = OneForOneStrategy(){
-    case _ => Restart
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 10){
+    case SendFailed(ex) =>
+      log.error(ex, "sending notification to publisher failed, restarting")
+      Restart
   }
 
   override def receive = {
@@ -51,15 +54,24 @@ class Notifier extends Actor {
 }
 
 object NotifierRequest {
+  case class SendFailed(ex: Throwable) extends Throwable
+
   def props(request: Notify, publisher: ActorRef) = Props(new NotifierRequest(request, publisher))
 }
 
 class NotifierRequest(request: Notify, publisher: ActorRef) extends Actor {
+  import akka.pattern.ask
+
   val message = s"[${request.auctionTitle}] ${request.buyer.path.name} is winning with price ${request.price}"
-  publisher ! Publish(message)
-  context.stop(self)
+
+  import context.dispatcher
+  implicit val timeout = Timeout(20 seconds)
+  (publisher ? Publish(message)).onComplete {
+    case Success(_) => context.stop(self)
+    case Failure(ex) => self ! SendFailed(ex)
+  }
 
   override def receive = {
-    case _ => println("message")
+    case ex: SendFailed => throw ex
   }
 }
