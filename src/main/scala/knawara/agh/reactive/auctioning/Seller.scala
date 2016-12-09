@@ -18,7 +18,7 @@ package object Seller {
 
   class Actor(auctionTitles: Set[AuctionTitle]) extends AkkaActor {
     val log = Logging(context.system, this)
-    val registryActorSelection = context.actorSelection("/user/system/registry")
+    val registryActorSelection = context.actorSelection("/user/system/mastersearch")
 
     val auctions = auctionTitles.map(auctionTitle => {
       import scala.concurrent.duration._

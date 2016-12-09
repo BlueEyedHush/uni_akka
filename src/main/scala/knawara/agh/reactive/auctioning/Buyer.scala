@@ -28,7 +28,7 @@ package object Buyer {
 
     when(WaitingForInitialTimeout) {
       case Event(InitialTimeoutExpired, _) =>
-        val registryActorSelection = context.actorSelection("/user/system/registry")
+        val registryActorSelection = context.actorSelection("/user/system/mastersearch")
         registryActorSelection ! AuctionSearch.Lookup(auctionQuery)
         goto(WaitingForAuctionList)
       case Event(msg, _) =>

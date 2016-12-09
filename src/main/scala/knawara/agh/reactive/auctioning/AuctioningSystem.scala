@@ -6,7 +6,7 @@ import com.typesafe.config.ConfigFactory
 
 class AuctioningSystem extends Actor {
   val log = Logging(context.system, this)
-  val registry = context.actorOf(Props[AuctionSearch.Actor], "registry")
+  val masterSearch = context.actorOf(MasterSearch.props(), "mastersearch")
 
   private[this] val titles = Set("1", "2", "3")
   val seller = context.actorOf(Seller.Actor.props(titles.map(s => new AuctionTitle(s))), "seller-0")

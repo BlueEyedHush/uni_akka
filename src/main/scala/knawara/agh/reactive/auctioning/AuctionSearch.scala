@@ -1,6 +1,6 @@
 package knawara.agh.reactive.auctioning
 
-import akka.actor.{ActorRef, Actor => AkkaActor}
+import akka.actor.{Actor => AkkaActor, Props, ActorRef}
 import akka.actor.Actor.Receive
 import akka.event.Logging
 
@@ -10,6 +10,10 @@ package object AuctionSearch {
   case class Register(val title: AuctionTitle, val ref: ActorRef)
   case class Lookup(val query: String)
   case class Result(val query: String, val auction: List[ActorRef])
+
+  object Actor {
+    def props() = Props(new Actor())
+  }
 
   class Actor extends AkkaActor {
     val log = Logging(context.system, this)
