@@ -1,84 +1,34 @@
 package knawara.agh.reactive.performance
 
+import akka.actor.Actor.Receive
 import akka.actor._
-
+import akka.actor.{Actor => AkkaActor}
 package object Buyer {
-  case object InitialTimeoutExpired
-
-  sealed trait State
-  case object WaitingForInitialTimeout extends State
-  case object WaitingForAuctionList extends State
-  case object Bidding extends State
-
-  sealed trait Data
-  case object Empty extends Data
-  case class BiddingInProgressData(val auction: ActorRef) extends Data
+  case class PerformanceResults(val timeMillis: Long)
 
   object Actor {
-    def props(query: String, budget: Long): Props = Props(new Actor(query, budget))
+    def props(auctionQueries: Set[String]): Props = Props(new Actor(auctionQueries))
   }
 
-  class Actor(auctionQuery: String, budget: Long) extends FSM[State, Data] {
-    import scala.concurrent.duration._
-    setTimer("initial-timeout", InitialTimeoutExpired, 1 second)
+  class Actor(auctionQueries: Set[String]) extends AkkaActor with ActorLogging {
+    val registryActorSelection = context.actorSelection("/user/system/mastersearch")
 
-    startWith(WaitingForInitialTimeout, Empty)
+    val startTime = System.currentTimeMillis()
+    auctionQueries.foreach(query => {
+      registryActorSelection ! AuctionSearch.Lookup(query)
+    })
 
-    when(WaitingForInitialTimeout) {
-      case Event(InitialTimeoutExpired, _) =>
-        val registryActorSelection = context.actorSelection("/user/system/mastersearch")
-        registryActorSelection ! AuctionSearch.Lookup(auctionQuery)
-        goto(WaitingForAuctionList)
-      case Event(msg, _) =>
-        log.debug("[{}] got new message: {} while in {} state", self.path.name, msg.toString, "WaitingForInitialTimeout")
-        stay
-    }
+    var responsesCount = 0
 
-    when(WaitingForAuctionList) {
-      case Event(AuctionSearch.Result(_, results), _) =>
-        val ho = results.headOption
-        if(ho.isDefined) {
-          log.debug("[{}] received Auctions ActorRef, bidding smallest possible amount", self.path.name)
-          ho.get ! Auction.PlaceBid(1L)
-          goto(Bidding) using BiddingInProgressData(ho.get)
-        } else {
-          log.debug("[{}] Query didn't return any auctions, shutting down buyer", self.path.name)
-          stop(FSM.Normal)
+    override def receive = {
+      case AuctionSearch.Result =>
+        responsesCount += 1
+        if(responsesCount == auctionQueries.size) {
+          val duration = System.currentTimeMillis() - startTime
+          context.parent ! PerformanceResults(duration)
+          context.stop(self)
         }
-      case Event(msg, _) =>
-        log.debug("[{}] got new message: {} while in {} state", self.path.name, msg.toString, "WaitingForAuctionList")
-        stay
-    }
-
-    when(Bidding) {
-      case Event(Auction.BidTooSmall(currentPrice), BiddingInProgressData(auctionRef)) =>
-        bidIfPossible(currentPrice, auctionRef)
-        stay
-      case Event(Auction.Outbidden(currentPrice), BiddingInProgressData(auctionRef)) =>
-        bidIfPossible(currentPrice, auctionRef)
-        stay
-      case Event(Auction.AlreadyEnded, _) =>
-        log.debug("[{}] received auction-end information, stopping", self.path.name)
-        stop(FSM.Normal)
-      case Event(Auction.YouWon, _) =>
-        log.debug("[{}] won", self.path.name)
-        stop(FSM.Normal)
-      case Event(msg, _) =>
-        log.debug("[{}] got new message: {} while in {} state", self.path.name, msg.toString, "Bidding")
-        stay
-    }
-
-    initialize()
-
-    private def bidIfPossible(currentItemPrice: Long, auction: ActorRef) = {
-      val newOffer = currentItemPrice + 1
-      if(newOffer < budget) {
-        log.debug("[{}] bid was too small, responding with {}", self.path.name, newOffer)
-        auction ! Auction.PlaceBid(newOffer)
-      } else {
-        log.debug("[{}] bid was too small, budget exhausted", self.path.name)
-        stop(FSM.Normal)
-      }
+      case msg => log.debug("Unknown message received: {}", msg)
     }
   }
 }
