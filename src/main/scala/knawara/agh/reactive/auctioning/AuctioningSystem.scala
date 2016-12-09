@@ -15,7 +15,7 @@ class AuctioningSystem extends Actor {
     .map({
       case (title, buyerId) => context.actorOf(Buyer.Actor.props(title, 5L), s"buyer-$title-$buyerId")
     })
-  val notifier = context.actorOf(Notifier.props())
+  val notifier = context.actorOf(Notifier.props(), "notifier")
 
   override def receive = {
     case _ @ msg => log.debug(s"AuctionSystem got new message: ${msg.toString}")

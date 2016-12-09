@@ -9,7 +9,7 @@ import knawara.agh.reactive.auctioning.Notifier.{Notify, ResolveFailure, Resolve
 import knawara.agh.reactive.publisher.AuctionPublisher.Publish
 
 object Notifier {
-  case class Notify(val auctionTitle: AuctionTitle,
+  case class Notify(val auctionTitle: String,
                     val buyer: ActorRef,
                     val price: Long)
 
@@ -42,6 +42,6 @@ class Notifier extends Actor {
 
   def receiveResolved: Receive  = {
     case Notify(title, buyer, price) =>
-      publisher ! Publish(s"[${title.title}] $buyer is winning with price $price")
+      publisher ! Publish(s"[$title] ${buyer.path.name} is winning with price $price")
   }
 }

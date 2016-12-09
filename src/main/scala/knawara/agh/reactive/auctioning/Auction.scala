@@ -44,6 +44,8 @@ package object Auction {
   class Actor(val auctionDuration: FiniteDuration,
               val auctionDeleteTime: FiniteDuration,
               val notifyOnEnd: Option[ActorRef] = None) extends FSM[State, Data] {
+    val notifier = context.actorSelection("/user/system/notifier")
+
     startWith(Created, Empty)
 
     when(Created) {
@@ -105,6 +107,7 @@ package object Auction {
       if (bidPrice > currentPrice) {
         log.debug("[{}] received and accepted bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
         if(currentWinner.isDefined) currentWinner.get ! Outbidden(newPrice = bidPrice)
+        notifier ! Notifier.Notify(self.path.name, sender(), currentPrice)
         goto(Activated) using ActiveData(price = bidPrice, buyer = sender())
       } else {
         log.debug("[{}] received but rejected bid from [{}] for {}", self.path.name, sender().path.name, bidPrice)
