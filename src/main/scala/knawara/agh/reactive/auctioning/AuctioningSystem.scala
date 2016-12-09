@@ -15,6 +15,7 @@ class AuctioningSystem extends Actor {
     .map({
       case (title, buyerId) => context.actorOf(Buyer.Actor.props(title, 5L), s"buyer-$title-$buyerId")
     })
+  val notifier = context.actorOf(Notifier.props())
 
   override def receive = {
     case _ @ msg => log.debug(s"AuctionSystem got new message: ${msg.toString}")
@@ -25,7 +26,7 @@ object AuctioningBootstrapper {
   def createActorSystem() = {
     val originalConfig = ConfigFactory.load()
     val overriddenConfig = originalConfig.getConfig("auctioningsys").withFallback(originalConfig)
-    ActorSystem("auctioningsystem").actorOf(Props[AuctioningSystem], "system")
+    ActorSystem("auctioningsystem", Some(overriddenConfig)).actorOf(Props[AuctioningSystem], "system")
   }
 
   def main(args: Array[String]): Unit = {
