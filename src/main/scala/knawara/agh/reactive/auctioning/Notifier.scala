@@ -1,10 +1,11 @@
 package knawara.agh.reactive.auctioning
 
+import akka.actor.SupervisorStrategy.Restart
 import akka.event.Logging
 
 import scala.util.{Success, Failure}
 import scala.concurrent.duration._
-import akka.actor.{Props, ActorRef, Actor}
+import akka.actor.{OneForOneStrategy, Actor, Props, ActorRef}
 import knawara.agh.reactive.auctioning.Notifier.{Notify, ResolveFailure, ResolveSuccess}
 import knawara.agh.reactive.publisher.AuctionPublisher.Publish
 
@@ -34,6 +35,10 @@ class Notifier extends Actor {
       self ! ResolveFailure
   }
 
+  override val supervisorStrategy = OneForOneStrategy(){
+    case _ => Restart
+  }
+
   override def receive = {
     case ResolveSuccess => context.become(receiveResolved, true)
     case ResolveFailure => context.stop(self)
@@ -41,7 +46,20 @@ class Notifier extends Actor {
   }
 
   def receiveResolved: Receive  = {
-    case Notify(title, buyer, price) =>
-      publisher ! Publish(s"[$title] ${buyer.path.name} is winning with price $price")
+    case notification: Notify => context.actorOf(NotifierRequest.props(notification, publisher))
+  }
+}
+
+object NotifierRequest {
+  def props(request: Notify, publisher: ActorRef) = Props(new NotifierRequest(request, publisher))
+}
+
+class NotifierRequest(request: Notify, publisher: ActorRef) extends Actor {
+  val message = s"[${request.auctionTitle}] ${request.buyer.path.name} is winning with price ${request.price}"
+  publisher ! Publish(message)
+  context.stop(self)
+
+  override def receive = {
+    case _ => println("message")
   }
 }
