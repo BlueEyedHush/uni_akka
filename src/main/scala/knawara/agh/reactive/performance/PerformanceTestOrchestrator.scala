@@ -9,11 +9,13 @@ import scala.util.Random
 
 class PerformanceTestOrchestrator extends Actor {
   val log = Logging(context.system, this)
+  val config = context.system.settings.config
 
-  val masterSearch = context.actorOf(MasterSearch.props(), "mastersearch")
+  val searchWorkerCount = config.getInt("auctioningsys.search.workers")
+  val masterSearch = context.actorOf(MasterSearch.props(searchWorkerCount), "mastersearch")
 
-  val titlesNum = 5000
-  val queriesNum = 100
+  val titlesNum = config.getInt("auctioningsys.auctions")
+  val queriesNum = config.getInt("auctioningsys.queries")
 
   private[this] val titles = (0 until titlesNum).map(id => new AuctionTitle(s"$id"))
   val seller = context.actorOf(Seller.Actor.props(titles), "seller")
@@ -25,7 +27,7 @@ class PerformanceTestOrchestrator extends Actor {
       context.actorOf(Buyer.Actor.props(queries), "buyer")
     case Buyer.PerformanceResults(millis) =>
       println(s"$titlesNum titles, $queriesNum queries. Duration: $millis ms")
-      context.system.terminate()
+      // context.system.terminate()
     case _ @ msg => log.debug(s"AuctionSystem got new message: ${msg.toString}")
   }
 }
