@@ -14,16 +14,16 @@ package object Seller {
   case class SellerAuctions(val auctions: Set[ActorRef])
 
   object Actor {
-    def props(auctionTitles: Set[AuctionTitle]): Props = Props(new Actor(auctionTitles))
+    def props(auctionTitles: Seq[AuctionTitle]): Props = Props(new Actor(auctionTitles))
   }
 
-  class Actor(auctionTitles: Set[AuctionTitle]) extends AkkaActor {
+  class Actor(auctionTitles: Seq[AuctionTitle]) extends AkkaActor {
     val log = Logging(context.system, this)
     val registryActorSelection = context.actorSelection("/user/system/mastersearch")
 
     val auctions = auctionTitles.map(auctionTitle => {
       import scala.concurrent.duration._
-      val duration = (Random.nextInt(5) + 15) seconds
+      val duration = 10 minutes
       val actorRef = context.actorOf(Auction.Actor.props(duration, Some(self)), s"auction-${auctionTitle.title}")
       registryActorSelection ! AuctionSearch.Register(auctionTitle, actorRef)
       actorRef
@@ -35,8 +35,6 @@ package object Seller {
       case Registered =>
         registeredCount += 1
         if(registeredCount == auctionTitles.size) context.parent ! AllRegistered
-      case GiveMeYourAuctions => sender() ! SellerAuctions(auctions)
-      case Auction.Sold(ref) => log.debug("[{}] item {} sold", self.path.name, ref.path.name)
       case _ @ msg => log.debug("[{}] got new message: {}", self.path.name, msg.toString)
     }
   }

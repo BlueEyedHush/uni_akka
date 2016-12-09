@@ -7,10 +7,10 @@ package object Buyer {
   case class PerformanceResults(val timeMillis: Long)
 
   object Actor {
-    def props(auctionQueries: Set[String]): Props = Props(new Actor(auctionQueries))
+    def props(auctionQueries: Seq[String]): Props = Props(new Actor(auctionQueries))
   }
 
-  class Actor(auctionQueries: Set[String]) extends AkkaActor with ActorLogging {
+  class Actor(auctionQueries: Seq[String]) extends AkkaActor with ActorLogging {
     val registryActorSelection = context.actorSelection("/user/system/mastersearch")
 
     val startTime = System.currentTimeMillis()
@@ -21,7 +21,7 @@ package object Buyer {
     var responsesCount = 0
 
     override def receive = {
-      case AuctionSearch.Result =>
+      case msg: AuctionSearch.Result =>
         responsesCount += 1
         if(responsesCount == auctionQueries.size) {
           val duration = System.currentTimeMillis() - startTime

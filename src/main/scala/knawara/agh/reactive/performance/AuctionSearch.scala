@@ -21,7 +21,6 @@ package object AuctionSearch {
 
     override def receive = {
       case Register(title, ref) =>
-        log.debug(s"registering: ${title.title}")
         aucitonRegistry += ((title, ref))
         sender() ! Registered
       case Lookup(searchTerm) =>
