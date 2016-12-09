@@ -7,6 +7,7 @@ import scala.collection.mutable
 
 package object AuctionSearch {
   case class Register(val title: AuctionTitle, val ref: ActorRef)
+  case object Registered
   case class Lookup(val query: String)
   case class Result(val query: String, val auction: List[ActorRef])
 
@@ -22,6 +23,7 @@ package object AuctionSearch {
       case Register(title, ref) =>
         log.debug(s"registering: ${title.title}")
         aucitonRegistry += ((title, ref))
+        sender() ! Registered
       case Lookup(searchTerm) =>
         val results = aucitonRegistry
           .filter({ case (auctionTitle, ref) =>

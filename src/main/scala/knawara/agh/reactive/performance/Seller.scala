@@ -2,6 +2,7 @@ package knawara.agh.reactive.performance
 
 import akka.actor.{Actor => AkkaActor, ActorRef, Props}
 import akka.event.Logging
+import knawara.agh.reactive.performance.AuctionSearch.Registered
 
 import scala.util.Random
 
@@ -9,6 +10,7 @@ class AuctionTitle(val title: String) extends AnyVal
 
 package object Seller {
   case object GiveMeYourAuctions
+  case object AllRegistered
   case class SellerAuctions(val auctions: Set[ActorRef])
 
   object Actor {
@@ -27,7 +29,12 @@ package object Seller {
       actorRef
     })
 
+    var registeredCount = 0
+
     override def receive = {
+      case Registered =>
+        registeredCount += 1
+        if(registeredCount == auctionTitles.size) context.parent ! AllRegistered
       case GiveMeYourAuctions => sender() ! SellerAuctions(auctions)
       case Auction.Sold(ref) => log.debug("[{}] item {} sold", self.path.name, ref.path.name)
       case _ @ msg => log.debug("[{}] got new message: {}", self.path.name, msg.toString)
