@@ -1,0 +1,30 @@
+Rezultaty:
+RoundRobin (10w)
+Q 2000
+A1 10k: 381ms
+A2 25k: 914ms
+A3: 50k: 1543 ms
+
+A 50k
+Q1 1k: 711 ms 
+Q2 5k: 3271 ms
+Q3 10k: 6396 ms
+
+ScatterGather (10w)
+Q 2000
+A1 10k: 1593 ms
+A2 25k: 4675 ms
+A3: 50k: 10709 ms
+
+A 50k
+Q1 1k: 5634 ms
+Q2 5k: 18494 ms
+Q3 10k: 
+Q4 25k: 
+
+RoundRobin (worker impact, Q 5k A 50 k):
+1: 6962 ms
+4: 3630 ms
+8: 2910 ms
+16: 3617 ms
+
